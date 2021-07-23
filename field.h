@@ -97,6 +97,7 @@ struct player_info {
 	card_vector tag_list_main;
 	card_vector tag_list_hand;
 	card_vector tag_list_extra;
+	bool isAI;
 
 	player_info()
 		: lp(0), start_count(0), draw_count(0), used_location(0), disabled_location(0), extra_p_count(0), tag_extra_p_count(0) {}
@@ -352,6 +353,10 @@ struct processor {
 	std::unordered_map<uint32, std::pair<uint32, uint32>> chain_counter;
 	processor_list recover_damage_reserve;
 	effect_vector dec_count_reserve;
+#ifdef USE_LUA
+	event_list private_event; //CUSTOM CODE keep track of summons for cards like Bottomless Trap Hole
+	card_vector private_publiccards_event; //CUSTOM CODE keep track of public knowledge cards
+#endif
 
 	processor()
 		: temp_var{ 0 }, global_flag(0), pre_field{ 0 }, chain_solving(FALSE), conti_solving(FALSE), win_player(5), win_reason(0), re_adjust(FALSE), reason_effect(nullptr), reason_player(PLAYER_NONE),
@@ -646,6 +651,12 @@ public:
 	int32 announce_attribute(int16 step, uint8 playerid, int32 count, int32 available);
 	int32 announce_card(int16 step, uint8 playerid);
 	int32 announce_number(int16 step, uint8 playerid);
+#ifdef USE_LUA
+	void set_card_to_lua_without_index(void* L, card* pcard, duel* pduel, uint32 description = 0, bool extraSetTableCall = false);
+	void set_card_to_lua(void* L, card* pcard, int i, uint32 description = 0);
+	void add_to_list_if_event_not_exists(tevent newevent);
+	bool sum_check(int32 acc, int32 min, int32 max);
+#endif
 };
 
 //Location Use Reason

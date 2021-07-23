@@ -26,12 +26,20 @@ interpreter::interpreter(duel* pd): coroutines(256) {
 	lua_setglobal(lua_state, "io");
 	lua_pushnil(lua_state);
 	lua_setglobal(lua_state, "os");
+#ifndef USE_LUA
 	luaL_getsubtable(lua_state, LUA_REGISTRYINDEX, "_LOADED");
 	lua_pushnil(lua_state);
 	lua_setfield(lua_state, -2, "io");
 	lua_pushnil(lua_state);
 	lua_setfield(lua_state, -2, "os");
 	lua_pop(lua_state, 1);
+#else
+	lua_pushnil(lua_state);
+	lua_setglobal(lua_state, "file");
+	lua_getglobal(lua_state, "bit32");
+	lua_setglobal(lua_state, "bit");
+	scriptlib::open_ailib(lua_state);
+#endif
 	//open all libs
 	scriptlib::open_cardlib(lua_state);
 	scriptlib::open_effectlib(lua_state);
@@ -650,3 +658,200 @@ duel* interpreter::get_duel_info(lua_State * L) {
 	lua_pop(L, 1);
 	return pduel;
 }
+#ifdef USE_LUA
+int interpreter::get_counter(lua_State *L) {
+	int32 countertype = lua_tointeger(L, 2);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	card* c;
+	int32 returnval = 0;
+
+	for (auto cit = pduel->cards.begin(); cit != pduel->cards.end(); ++cit) {
+		c = *cit;
+		if (c->cardid == cardid) {
+			returnval = c->get_counter(countertype);
+			break;
+		}
+	}
+
+	lua_pushnumber(L, returnval);
+
+	return 1;
+}
+int interpreter::is_affected_by(lua_State *L) {
+	int32 effecttype = lua_tointeger(L, 2);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	card* c;
+	int32 returnval = 0;
+	//bool returnval = false;
+	for (auto cit = pduel->cards.begin(); cit != pduel->cards.end(); ++cit) {
+		c = *cit;
+		if (c->cardid == cardid) {
+			if (c->is_affected_by_effect(effecttype)) {
+				returnval = 1;
+				break;
+				//returnval = true;
+			}
+		}
+	}
+
+	lua_pushnumber(L, returnval);
+	//lua_pushboolean(L, returnval);
+
+	return 1;
+}
+int interpreter::is_affectable_by_chain(lua_State *L) {
+	int32 effect_card_index = lua_tointeger(L, 2);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	card* c;
+	effect* peffect;
+	int32 returnval = 0;
+
+	peffect = pduel->game_field->core.select_chains[effect_card_index - 1].triggering_effect;
+
+	for (auto cit = pduel->cards.begin(); cit != pduel->cards.end(); ++cit) {
+		c = *cit;
+		if (c->cardid == cardid) {
+			c->filter_immune_effect();
+			if (c->is_affect_by_effect(peffect)) {
+				returnval = 1;
+				break;
+			}
+		}
+	}
+	lua_pushnumber(L, returnval);
+
+	return 1;
+}
+int interpreter::can_be_targeted_by_chain(lua_State *L) {
+	int32 effect_card_index = lua_tointeger(L, 2);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	card* c;
+	effect* peffect;
+	uint8 tp;
+	int32 returnval = 0;
+
+	peffect = pduel->game_field->core.select_chains[effect_card_index - 1].triggering_effect;
+	tp = pduel->game_field->core.select_chains[effect_card_index - 1].triggering_player;
+
+	for (auto cit = pduel->cards.begin(); cit != pduel->cards.end(); ++cit) {
+		c = *cit;
+		if (c->cardid == cardid) {
+			c->filter_immune_effect();
+			if (c->is_capable_be_effect_target(peffect, tp)) {
+				returnval = 1;
+				break;
+			}
+		}
+	}
+	lua_pushnumber(L, returnval);
+
+	return 1;
+}
+int interpreter::get_equipped_cards(lua_State *L) {
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	card* c;
+	//int32 returnval = 0;
+	int counter = 1;
+
+	for (auto cit = pduel->cards.begin(); cit != pduel->cards.end(); ++cit) {
+		c = *cit;
+		if (c->cardid == cardid) {
+			for (auto cit = c->equiping_cards.begin(); cit != c->equiping_cards.end();) {
+				lua_pushnumber(L, counter);
+				auto rm = cit++;
+				pduel->game_field->set_card_to_lua_without_index(L, (*rm), pduel, 0, true);
+				counter++;
+			}
+			break;
+		}
+	}
+	//lua_pushnumber(L, returnval);
+
+	return 1;
+}
+int interpreter::is_public_card(lua_State *L) { //CUSTOM CODE
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	std::vector<card*> private_publiccards_event = pduel->game_field->core.private_publiccards_event;
+
+	if (private_publiccards_event.size() > 0) {
+		int i = 0;
+		for (auto elit = private_publiccards_event.begin(); elit != private_publiccards_event.end(); ++elit) {
+			card* pcard = (*elit);
+			if (pcard->cardid == cardid) {
+				lua_pushnumber(L, 1); //card is public, return 1 to lua engine
+				return 1;
+			}
+		}
+	}
+
+	lua_pushnumber(L, 0); //card not found, return 0 to lua engine
+	return 1;
+}
+int interpreter::get_equip_target(lua_State *L) {
+	lua_pushstring(L, "cardid");
+	lua_gettable(L, -2);
+	int cardid = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	duel* pduel = interpreter::get_duel_info(L);
+	card* c;
+	//int32 returnval = 0;
+	int counter = 1;
+
+	for (auto cit = pduel->cards.begin(); cit != pduel->cards.end(); ++cit) {
+		c = *cit;
+		if (c->cardid == cardid) {
+			if (c->equiping_target) {
+				lua_newtable(L);
+				lua_pushnumber(L, counter);
+				pduel->game_field->set_card_to_lua_without_index(L, c->equiping_target, pduel, 0, true);
+			}
+			else {
+				lua_pushboolean(L, 0); //set a false
+			}
+			break;
+		}
+	}
+	//lua_pushnumber(L, returnval);
+
+	return 1;
+}
+#endif

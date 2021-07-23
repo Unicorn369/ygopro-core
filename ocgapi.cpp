@@ -341,3 +341,64 @@ extern "C" DECL_DLLEXPORT void set_responseb(ptr pduel, byte* buf) {
 extern "C" DECL_DLLEXPORT int32 preload_script(ptr pduel, const char* script, int32 len) {
 	return ((duel*)pduel)->lua->load_script(script);
 }
+#ifdef USE_LUA
+static message_handler chathandler = default_message_handler;
+extern "C" DECL_DLLEXPORT void set_chat_handler(message_handler f) {
+	chathandler = f;
+}
+uint32 handle_chat_message(void* pduel, uint32 msg_type) {
+	return chathandler(pduel, msg_type);
+}
+extern "C" DECL_DLLEXPORT int32 get_ai_going_first_second(ptr pduel, char* deckname) {
+	duel* pd = (duel*)pduel;
+	lua_State* L = pd->lua->lua_state;
+	lua_getglobal(L, "OnAIGoingFirstSecond");
+	int result = 1; //by default ai goes first
+
+	if (!lua_isnil(L, -1)) {
+		/* the first argument: deckname */
+		lua_pushstring(L, deckname);
+
+		if (lua_pcall(L, 1, 1, 0) != 0) {
+			sprintf(pd->strbuffer, "%s", lua_tostring(L, -1));
+			handle_message(pd, 1);
+		}
+
+		result = (int)lua_tointeger(L, -1);
+		lua_pop(L, 1);
+	}
+
+	return result;
+}
+extern "C" DECL_DLLEXPORT void set_player_going_first_second(ptr pduel, int32 first, char* deckname) {
+	duel* pd = (duel*)pduel;
+	if (pd) {
+		lua_State* L = pd->lua->lua_state;
+		lua_getglobal(L, "OnPlayerGoingFirstSecond");
+		int result = 1; //by default ai goes first
+
+		if (!lua_isnil(L, -1)) {
+			/* the first argument: first or second */
+			lua_pushnumber(L, first);
+
+			/* the second argument: ai deckname */
+			lua_pushstring(L, deckname);
+
+			if (lua_pcall(L, 2, 0, 0) != 0) {
+				sprintf(pd->strbuffer, "%s", lua_tostring(L, -1));
+				handle_message(pd, 1);
+			}
+		}
+	}
+}
+extern "C" DECL_DLLEXPORT void set_ai_id(ptr pduel, int playerid) {
+	duel* pd = (duel*)pduel;
+
+	//reset the values first
+	pd->game_field->player[0].isAI = false;
+	pd->game_field->player[1].isAI = false;
+
+	pd->game_field->player[playerid].isAI = true;
+	pd->game_field->player[1 - playerid].isAI = false;
+}
+#endif

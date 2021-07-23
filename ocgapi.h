@@ -54,4 +54,11 @@ byte* default_script_reader(const char* script_name, int* len);
 uint32 default_card_reader(uint32 code, card_data* data);
 uint32 default_message_handler(void* pduel, uint32 msg_type);
 
+#ifdef USE_LUA
+extern "C" DECL_DLLEXPORT void set_chat_handler(message_handler f);
+uint32 handle_chat_message(void* pduel, uint32 message_type);
+extern "C" DECL_DLLEXPORT int32 get_ai_going_first_second(ptr pduel, char* deckname);
+extern "C" DECL_DLLEXPORT void set_player_going_first_second(ptr pduel, int32 first, char* deckname);
+extern "C" DECL_DLLEXPORT void set_ai_id(ptr pduel, int playerid);
+#endif
 #endif /* OCGAPI_H_ */

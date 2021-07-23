@@ -3481,3 +3481,32 @@ int32 field::is_able_to_enter_bp() {
 	        && infos.phase < PHASE_BATTLE_START
 	        && !is_player_affected_by_effect(infos.turn_player, EFFECT_CANNOT_BP);
 }
+#ifdef USE_LUA
+void field::add_to_list_if_event_not_exists(tevent new_event) { //CUSTOM CODE
+	if (new_event.trigger_card) {
+		uint16 cardid = new_event.trigger_card->cardid;
+		for (auto elit = core.private_publiccards_event.begin(); elit != core.private_publiccards_event.end(); ++elit) {
+			card* pcard = (*elit);
+			if (pcard->cardid == cardid) {
+				return;
+			}
+		}
+		core.private_publiccards_event.push_back(new_event.trigger_card);
+	}
+	else if (new_event.event_cards) {
+		card_set set = new_event.event_cards->container;
+		for (auto iter = set.begin(); iter != set.end(); ++iter) {
+			card* eventcard = (*iter);
+			uint16 cardid = eventcard->cardid;
+			for (auto elit = core.private_publiccards_event.begin(); elit != core.private_publiccards_event.end(); ++elit) {
+				card* pcard = (*elit);
+				if (pcard->cardid == cardid) {
+					return;
+				}
+			}
+			core.private_publiccards_event.push_back(eventcard);
+		}
+
+	}
+}
+#endif

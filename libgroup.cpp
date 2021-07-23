@@ -896,3 +896,27 @@ void scriptlib::open_grouplib(lua_State *L) {
 	lua_rawset(L, -3);
 	lua_setglobal(L, "Group");
 }
+#ifdef USE_LUA
+//CUSTOM CODE
+int32 scriptlib::get_targeted_cards(lua_State *L) {
+	duel* pduel = interpreter::get_duel_info(L);
+	if (pduel->game_field->core.current_chain.size() > 0) {
+		chain* ch = &pduel->game_field->core.current_chain[pduel->game_field->core.current_chain.size() - 1];
+		if (ch) {
+			group* pgroup = ch->target_cards;
+			if (pgroup) {
+				if (pgroup->container.size() >0) {
+					field::card_set::iterator cit;
+					for (cit = pgroup->container.begin(); cit != pgroup->container.end(); ++cit) {
+						card* pcard = (*cit);
+						if (pcard) {
+							printf("*** get_targeted_cards %d ***\n", pcard->get_code());
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+#endif

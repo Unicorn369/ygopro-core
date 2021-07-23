@@ -8,9 +8,15 @@
 #ifndef INTERPRETER_H_
 #define INTERPRETER_H_
 
+#ifdef USE_LUA
+extern "C" {
+#endif
 #include "lua.h"
 #include "lauxlib.h"
 #include "lualib.h"
+#ifdef USE_LUA
+}
+#endif
 #include "common.h"
 #include <unordered_map>
 #include <list>
@@ -72,6 +78,15 @@ public:
 	static void set_duel_info(lua_State* L, duel* pduel);
 	static duel* get_duel_info(lua_State* L);
 
+#ifdef USE_LUA
+	static int get_counter(lua_State *L);
+	static int is_affected_by(lua_State *L);
+	static int is_affectable_by_chain(lua_State *L);
+	static int can_be_targeted_by_chain(lua_State *L);
+	static int get_equipped_cards(lua_State *L);
+	static int get_equip_target(lua_State *L);
+	static int is_public_card(lua_State *L);
+#endif
 	template <size_t N, typename... TR>
 	static int sprintf(char (&buffer)[N], const char* format, TR... args) {
 		return std::snprintf(buffer, N, format, args...);

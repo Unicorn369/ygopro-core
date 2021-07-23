@@ -478,13 +478,14 @@ int32 scriptlib::duel_sets(lua_State *L) {
 		toplayer = (uint32)lua_tointeger(L, 3);
 	if(toplayer != 0 && toplayer != 1)
 		toplayer = playerid;
+	card* pcard = 0;
 	uint32 confirm = TRUE;
 	if(lua_gettop(L) > 3)
 		confirm = lua_toboolean(L, 4);
 	group* pgroup = 0;
 	duel* pduel = 0;
 	if(check_param(L, PARAM_TYPE_CARD, 2, TRUE)) {
-		card* pcard = *(card**) lua_touserdata(L, 2);
+		pcard = *(card**) lua_touserdata(L, 2);
 		pduel = pcard->pduel;
 		pgroup = pduel->new_group(pcard);
 	} else if(check_param(L, PARAM_TYPE_GROUP, 2, TRUE)) {
@@ -496,6 +497,13 @@ int32 scriptlib::duel_sets(lua_State *L) {
 	} else
 		luaL_error(L, "Parameter %d should be \"Card\" or \"Group\".", 2);
 	pduel->game_field->add_process(PROCESSOR_SSET_G, 0, pduel->game_field->core.reason_effect, pgroup, playerid, toplayer, confirm);
+#ifdef USE_LUA
+	if (pcard) { //CUSTOM CODE
+		tevent new_event;
+		new_event.trigger_card = pcard;
+		pduel->game_field->add_to_list_if_event_not_exists(new_event);
+	}
+#endif
 	return lua_yieldk(L, 0, (lua_KContext)pduel, [](lua_State *L, int32 status, lua_KContext ctx) {
 		duel* pduel = (duel*)ctx;
 		lua_pushinteger(L, pduel->game_field->returns.ivalue[0]);
@@ -4731,3 +4739,34 @@ void scriptlib::open_duellib(lua_State *L) {
 	luaL_newlib(L, duellib);
 	lua_setglobal(L, "Duel");
 }
+#ifdef USE_LUA
+static const struct luaL_Reg ailib[] = {
+	{ "Chat", scriptlib::chat_message },
+	{ "GetOppExtraDeck", scriptlib::get_opp_extra_deck },
+	{ "GetAIExtraDeck", scriptlib::get_ai_extra_deck },
+	{ "GetOppMainDeck", scriptlib::get_opp_main_deck },
+	{ "GetAIMainDeck", scriptlib::get_ai_main_deck },
+	{ "GetOppMonsterZones", scriptlib::get_opp_monster_zones },
+	{ "GetAIMonsterZones", scriptlib::get_ai_monster_zones },
+	{ "GetOppSpellTrapZones", scriptlib::get_opp_st_zones },
+	{ "GetAISpellTrapZones", scriptlib::get_ai_st_zones },
+	{ "GetOppGraveyard", scriptlib::get_opp_graveyard },
+	{ "GetAIGraveyard", scriptlib::get_ai_graveyard },
+	{ "GetOppBanished", scriptlib::get_opp_banished },
+	{ "GetAIBanished", scriptlib::get_ai_banished },
+	{ "GetOppHand", scriptlib::get_opp_hand },
+	{ "GetAIHand", scriptlib::get_ai_hand },
+	{ "GetPlayerLP", scriptlib::get_player_lp },
+	{ "GetCurrentPhase", scriptlib::get_phase },
+	{ "GetTargetedCardsOfLastInChain", scriptlib::get_targeted_cards },
+	{ "GetLastSummonedCards", scriptlib::get_last_summoned_cards },
+	{ "GetScriptFromCardObject", scriptlib::get_script_from_card_object },
+	{ "GetCardObjectFromScript", scriptlib::get_card_object_from_script },
+	{ "GetCardName", scriptlib::get_card_name },
+	{ NULL, NULL }
+};
+void scriptlib::open_ailib(lua_State *L) {
+	luaL_newlib(L, ailib);
+	lua_setglobal(L, "AI");
+}
+#endif
